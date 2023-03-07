@@ -1,18 +1,26 @@
 const coin = "LTC";
-const ordinalsExplorerUrl = "https://ordinals.com";
-const baseMempoolUrl = "https://mempool.space";
+const ordinalsExplorerUrl = "https://liteordinals-explorer.scaur.nz";
+const baseBlockchairUrl = "https://blockchair.com/litecoin";
 const networkName = "mainnet";
-const baseMempoolApiUrl = `${baseMempoolUrl}/api`;
-const bitcoinPriceApiUrl = "https://blockchain.info/ticker?cors=true";
-const nostrRelayUrl = "wss://nostr.openordex.org";
-const collectionsRepo = "ordinals-wallet/ordinals-collections";
-const exchangeName = "openordex";
-const feeLevel = "hourFee"; // "fastestFee" || "halfHourFee" || "hourFee" || "economyFee" || "minimumFee"
+const baseBlockchairApiUrl = "https://api.blockchair.com/litecoin";
+const baseBitapsApiUrl = "https://api.bitaps.com/ltc/v1";
+const baseCryptoIdApiUrl = "https://chainz.cryptoid.info/ltc/api.dws";
+const baseBlockcypherApiUrl = "https://api.blockcypher.com/v1/ltc";
+const cryptoIdApiKey = ""; // required for getAddressUtxos
+const litecoinPriceApiUrl =
+  "https://api.coingecko.com/api/v3/simple/price?ids=litecoin&vs_currencies=usd";
+const nostrRelayUrl = "wss://nostr.scaur.nz";
+const collectionsRepo = "jamesscaur/liteordinals-collections";
+const exchangeName = "liteordex";
 const dummyUtxoValue = 1_000;
 const nostrOrderEventKind = 802;
 const txHexByIdCache = {};
 const urlParams = new URLSearchParams(window.location.search);
 const numberOfDummyUtxosToCreate = 1;
+// const baseMempoolUrl = "https://mempool.space";
+// const baseMempoolApiUrl = `${baseMempoolUrl}/api`;
+// const bitcoinPriceApiUrl = "https://blockchain.info/ticker?cors=true";
+// const feeLevel = "hourFee"; // "fastestFee" || "halfHourFee" || "hourFee" || "economyFee" || "minimumFee"
 
 let inscriptionIdentifier = urlParams.get("number");
 let collectionSlug = urlParams.get("slug");
@@ -232,23 +240,34 @@ function getExplorerLink(inscriptionId) {
 async function getTxHexById(txId) {
   if (!txHexByIdCache[txId]) {
     txHexByIdCache[txId] = await fetch(
-      `${baseMempoolApiUrl}/tx/${txId}/hex`
-    ).then((response) => response.text());
+      //`${baseMempoolApiUrl}/tx/${txId}/hex`
+      `${baseBlockchairApiUrl}/raw/transaction/${txId}`
+      // .then((response) => response.text());
+    )
+      .then((response) => response.json())
+      .then((json) => json?.data?.[txId]?.raw_transaction);
   }
 
   return txHexByIdCache[txId];
 }
 
 async function getAddressMempoolTxIds(address) {
-  return await fetch(`${baseMempoolApiUrl}/address/${address}/txs/mempool`)
+  return await fetch(
+    // `${baseMempoolApiUrl}/address/${address}/txs/mempool`
+    `${baseBitapsApiUrl}/blockchain/address/unconfirmed/transactions/${address}`
+  )
     .then((response) => response.json())
+    .then((json) => json?.data?.list)
     .then((txs) => txs.map((tx) => tx.txid));
 }
 
 async function getAddressUtxos(address) {
-  return await fetch(`${baseMempoolApiUrl}/address/${address}/utxo`).then(
-    (response) => response.json()
-  );
+  return await fetch(
+    // `${baseMempoolApiUrl}/address/${address}/utxo`
+    `${baseCryptoIdApiUrl}?key=${cryptoIdApiKey}&q=unspent&active=${address}`
+  )
+    .then((response) => response.json())
+    .then((json) => json?.unspent_outputs);
 }
 
 function openInscription() {
@@ -269,8 +288,8 @@ async function getInscriptionIdByNumber(inscriptionNumber) {
 }
 
 async function getCollection(collectionSlug) {
-  if (collectionSlug == "under-1k") {
-    return await fetch(`/static/under-1k.json`).then((response) =>
+  if (collectionSlug == "under-10") {
+    return await fetch(`/static/under-10.json`).then((response) =>
       response.json()
     );
   }
@@ -471,9 +490,9 @@ function satToBtc(sat) {
 }
 
 async function main() {
-  bitcoinPrice = fetch(bitcoinPriceApiUrl)
+  bitcoinPrice = fetch(litecoinPriceApiUrl)
     .then((response) => response.json())
-    .then((data) => data.USD.last);
+    .then((data) => data?.litecoin?.usd); // data.USD.last
 
   if (window.NostrTools) {
     nostrRelay = window.NostrTools.relayInit(nostrRelayUrl);
@@ -491,9 +510,13 @@ async function main() {
   });
 
   if (window.location.pathname.startsWith("/inscription")) {
-    recommendedFeeRate = fetch(`${baseMempoolApiUrl}/v1/fees/recommended`)
+    recommendedFeeRate = fetch(
+      // `${baseMempoolApiUrl}/v1/fees/recommended`
+      `${baseBlockcypherApiUrl}/main`
+    )
       .then((response) => response.json())
-      .then((data) => data[feeLevel]);
+      //.then((data) => data[feeLevel]);
+      .then((json) => Math.round(json?.medium_fee_per_kb || 0 / 1000));
     inscriptionPage();
   } else if (window.location.pathname.startsWith("/collections")) {
     collectionsPage();
@@ -831,15 +854,15 @@ async function inscriptionPage() {
     let totalValue = 0;
 
     for (const utxo of payerUtxos) {
-      const tx = bitcoin.Transaction.fromHex(await getTxHexById(utxo.txid));
+      const tx = bitcoin.Transaction.fromHex(await getTxHexById(utxo.tx_hash));
       for (const output in tx.outs) {
         try {
           tx.setWitness(parseInt(output), []);
         } catch {}
       }
       psbt.addInput({
-        hash: utxo.txid,
-        index: utxo.vout,
+        hash: utxo.tx_hash,
+        index: utxo.tx_ouput_n,
         nonWitnessUtxo: tx.toBuffer(),
         // witnessUtxo: tx.outs[utxo.vout],
       });
@@ -986,7 +1009,7 @@ Missing:     ${satToBtc(-changeValue)} ${coin}`;
           "buyStatusMessage"
         ).innerHTML = `${successMessage}
 <br><br>
-See transaction details on <a href="${baseMempoolUrl}/tx/${txId}" target="_blank">block explorer</a>.`;
+See transaction details on <a href="${baseBlockchairUrl}/transaction/${txId}" target="_blank">block explorer</a>.`;
       }
     }, 5_000);
   };
@@ -1216,10 +1239,10 @@ async function loadLatestOrders(limit = 8, nostrLimit = 25) {
 async function homePage() {
   loadCollections(12, [
     {
-      name: "<1k",
+      name: "<10",
       inscription_icon:
-        "26482871f33f1051f450f2da9af275794c0b5f1c61ebf35e4467fb42c2813403i0",
-      slug: "under-1k",
+        "8611ba0b661b22d3bd53b44b607bc2255c66631c71eac97b47dd279a5c06a107i0",
+      slug: "under-10",
     },
   ]);
 
