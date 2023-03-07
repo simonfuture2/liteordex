@@ -18,18 +18,25 @@ The collection data is taken from the [ordinal-collections](https://github.com/o
 
 Make a PR with a change to /static/collections.json
 
-## How to run Liteordex in your localhost
+## How to run LiteOrdex in your localhost
 
 Build docker image
 
 ```
-$ docker build -t openordex .
-```
-
-Run Liteordex with docker
+$ docker build -t liteordex .
 
 ```
-$ docker run -it -d -p 8080:80 openordex
+
+Run LiteOrdex with docker
+
+```
+$ docker run -it -d -p 8080:80 liteordex
+```
+
+Workaround for rapid dev / reloading:
+
+```
+docker rm -vf $(docker ps -a -q); docker build -t liteordex .; docker run -it -d -p 8080:80 liteordex;
 ```
 
 <img width="1057" alt="Screen Shot 2023-03-06 at 9 40 15 AM" src="https://user-images.githubusercontent.com/115091323/223142708-3eb0e8d7-08d7-4854-9d3f-32ddda7f975d.png">
