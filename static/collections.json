@@ -1,10 +1,10 @@
 [
   {
-    "name": "Lit Punks",
+    "name": "Lite Punks",
     "inscription_icon": "3d37fae790199311cf29be0e93954ab5cfe53af866468e5d4ba9659c6607f5dfi0",
     "supply": "10000",
-    "slug": "lit-punks",
-    "description": "Lit Punks are the first byte-perfect uploads of the original Ethereum CryptoPunks onto the Litecoin Blockchain using Ordinals.",
+    "slug": "lite-punks",
+    "description": "Lite Punks are the first byte-perfect uploads of the original Ethereum CryptoPunks onto the Litecoin Blockchain using Ordinals.",
     "twitter_link": "https://twitter.com/Lite_Punks_",
     "discord_link": "https://discord.gg/AQvqEcvx",
     "website_link": "https://litecoinpunks.com"
